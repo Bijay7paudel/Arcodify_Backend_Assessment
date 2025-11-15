@@ -1,70 +1,65 @@
-import httpx
-from typing import List, Optional, Tuple
-import json
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.future import select
+from models import Post
 from schemas_post import ExternalPost
-from redis_client import redis_client
+from typing import Optional, List, Tuple
+import httpx
 
 POSTS_API_URL = "https://jsonplaceholder.typicode.com/posts"
-CACHE_KEY_ALL = "posts:all"
-CACHE_TTL = 60 * 5  # 5 minutes TTL
 
-# -----------------------------
-# Fetch all posts with caching
-# -----------------------------
-async def fetch_all_posts() -> List[ExternalPost]:
-    """Fetch all posts from external API, cached in Redis"""
-    # Try to get posts from Redis
-    cached = await redis_client.get(CACHE_KEY_ALL)
-    if cached:
-        data = json.loads(cached)
-        return [ExternalPost(**item) for item in data]
+# ----------------- DB POST -----------------
+async def fetch_db_post_by_id(post_id: int, db: AsyncSession) -> Optional[Post]:
+    """Fetch a single post from your database by ID"""
+    result = await db.execute(select(Post).where(Post.id == post_id))
+    return result.scalar_one_or_none()
 
-    # If not cached, fetch from API
-    async with httpx.AsyncClient() as client:
-        response = await client.get(POSTS_API_URL)
-        response.raise_for_status()
-        data = response.json()
 
-    # Store in Redis
-    await redis_client.set(CACHE_KEY_ALL, json.dumps(data), ex=CACHE_TTL)
-    return [ExternalPost(**item) for item in data]
+async def fetch_all_external_posts(db: AsyncSession) -> List[ExternalPost]:
+    """Fetch all posts from your database"""
+    result = await db.execute(select(Post))
+    posts = result.scalars().all()
+    
+    # Convert your Post model to ExternalPost format
+    return [
+        ExternalPost(
+            userId=post.user_id,
+            id=post.id,
+            title=post.title,
+            body=post.body
+        ) 
+        for post in posts
+    ]
 
-# -----------------------------
-# Fetch single post by ID
-# -----------------------------
-async def fetch_post_by_id(post_id: int) -> Optional[ExternalPost]:
-    """Fetch a single post by ID, cached in Redis"""
-    cache_key = f"posts:{post_id}"
-    cached = await redis_client.get(cache_key)
-    if cached:
-        return ExternalPost(**json.loads(cached))
 
+async def fetch_external_post_by_id(post_id: int) -> Optional[ExternalPost]:
+    """Fetch a single external post by ID"""
     async with httpx.AsyncClient() as client:
         response = await client.get(f"{POSTS_API_URL}/{post_id}")
         if response.status_code == 404:
             return None
         response.raise_for_status()
         data = response.json()
-
-    await redis_client.set(cache_key, json.dumps(data), ex=CACHE_TTL)
     return ExternalPost(**data)
 
-# -----------------------------
-# Search posts in memory
-# -----------------------------
-def search_posts(posts: List[ExternalPost], query: str) -> List[ExternalPost]:
-    """Search posts by title or body"""
-    query_lower = query.lower()
-    return [
-        post for post in posts
-        if query_lower in post.title.lower() or query_lower in post.body.lower()
-    ]
 
-# -----------------------------
-# Paginate posts
-# -----------------------------
+# ----------------- SEARCH -----------------
+def search_posts(posts: List[ExternalPost], query: str) -> List[ExternalPost]:
+    """Search posts by title or body (case-insensitive)"""
+    query_lower = query.lower()
+    filtered = []
+    for post in posts:
+        title = getattr(post, "title", "") or ""
+        body = getattr(post, "body", "") or ""
+        if query_lower in title.lower() or query_lower in body.lower():
+            filtered.append(post)
+    return filtered
+
+
+# ----------------- PAGINATION -----------------
 def paginate_posts(posts: List[ExternalPost], page: int, size: int) -> Tuple[List[ExternalPost], int]:
-    """Paginate posts"""
+    """Paginate the posts list safely"""
+    total = len(posts)
     start = (page - 1) * size
     end = start + size
-    return posts[start:end], len(posts)
+    paginated = posts[start:end] if start < total else []
+    return paginated, total
