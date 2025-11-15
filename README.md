@@ -25,7 +25,7 @@ A FastAPI application with JWT authentication, user management, and post creatio
 ### 1. Clone the repository
 
 ```bash
-git clone <your-repo-url>
+git clone <repo-url>
 cd fastapi-jwt-project
 ```
 
