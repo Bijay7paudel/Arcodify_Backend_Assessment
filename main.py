@@ -1,13 +1,21 @@
+# main.py
 from fastapi import FastAPI
 from contextlib import asynccontextmanager
-from database import init_db
-from routers import auth, profile, posts  # ← Added posts here
+from database import engine, Base
+from routers import auth, profile, posts
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     print("🚀 Starting up...")
-    await init_db()
-    print("✅ Database initialized!")
+
+    # Import models to register them with Base
+    import models
+
+    # Create all tables in PostgreSQL
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+    
+    print("✅ Database tables created!")
     yield
     print("👋 Shutting down...")
 
@@ -17,10 +25,10 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# Include routers
+# Include your routers
 app.include_router(auth.router)
 app.include_router(profile.router)
-app.include_router(posts.router)  # ← Added this line
+app.include_router(posts.router)
 
 @app.get("/")
 async def root():
