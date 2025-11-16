@@ -2,18 +2,19 @@
 
 A FastAPI application with JWT authentication, user management, and post creation features.
 
-## 🚀 Features
+## 🚀 **Features**
 
---✅ JWT Authentication - Access and refresh tokens
---✅ User Management - Registration, login, profile management
---✅ Role-Based Access Control - Admin and regular user roles
---✅ Post Management - Create and manage posts
---✅ Admin Dashboard - User management for administrators
---✅ Database Migrations - Alembic for database version control
---✅ Async Operations - Full async/await support with SQLAlchemy
---✅ Input Validation - Pydantic schemas for data validation
---✅ API Documentation - Auto-generated with Swagger UI
---✅ Background Tasks - Celery used for sending welcome emails and other async tasks
+- ✅ **JWT Authentication** - Access and refresh tokens
+- ✅ **User Management** - Registration, login, profile management
+- ✅ **Role-Based Access Control** - Admin and regular user roles
+- ✅ **Post Management** - Create and manage posts
+- ✅ **Admin Dashboard** - User management for administrators
+- ✅ **Database Migrations** - Alembic for database version control
+- ✅ **Async Operations** - Full async/await support with SQLAlchemy
+- ✅ **Input Validation** - Pydantic schemas for data validation
+- ✅ **API Documentation** - Auto-generated with Swagger UI
+- ✅ **Background Tasks** - Celery used for sending welcome emails and other async tasks
+
 
 ## 📋 Prerequisites
 
