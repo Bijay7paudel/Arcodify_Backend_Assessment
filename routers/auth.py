@@ -9,17 +9,20 @@ from security import create_access_token, create_refresh_token, SECRET_KEY, ALGO
 from models import User
 import jwt
 
+# 🚀 ADD THIS IMPORT FOR CELERY TASK
+from celery_worker import send_welcome_email
+
 router = APIRouter(prefix="/auth", tags=["authentication"])
 
 # --------------------------
-# User Registration Endpoint
+# User Registration Endpoint (WITH CELERY TASK)
 # --------------------------
 @router.post("/register", response_model=UserOut, status_code=status.HTTP_201_CREATED)
 async def register(
     payload: UserCreate,
     db: AsyncSession = Depends(get_db)
 ):
-    """Register a new user"""
+    """Register a new user and send welcome email in background"""
     # Check if user already exists
     existing_user = await get_user_by_email(db, payload.email)
     if existing_user:
@@ -30,6 +33,11 @@ async def register(
     
     # Create new user (normal user, is_admin=False)
     user = await create_user(db, payload.email, payload.password, payload.full_name)
+    
+    # 🚀 SEND WELCOME EMAIL IN BACKGROUND (NON-BLOCKING)
+    send_welcome_email.delay(user.email, user.full_name or "User")
+    print(f"✨ User {user.email} registered! Welcome email task queued.")
+    
     return user
 
 # --------------------------
